@@ -4,7 +4,6 @@
 
 #![allow(dead_code)]
 
-extern crate futures;
 extern crate net2;
 extern crate rand;
 
@@ -12,16 +11,11 @@ use redis;
 
 use std::env;
 use std::fs;
-use std::io;
 use std::process;
 use std::thread::sleep;
 use std::time::Duration;
 
 use std::path::PathBuf;
-
-use self::futures::Future;
-
-use redis::{RedisError, Value};
 
 #[derive(PartialEq)]
 enum ServerType {
@@ -165,5 +159,4 @@ impl TestContext {
     pub fn stop_server(&mut self) {
         self.server.stop();
     }
-
 }

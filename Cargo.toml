@@ -11,8 +11,3 @@ path = "../redis-rs"
 rand = "0.4"
 net2 = "0.2"
 futures = "0.1"
-# fnv = "1.0.5"
-# criterion = "0.2"
-# partial-io = { version = "0.3", features = ["tokio", "quickcheck"] }
-# quickcheck = "0.6"
-# tokio = "0.1"

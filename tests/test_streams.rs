@@ -5,13 +5,13 @@ use redis::{Connection, RedisResult, ToRedisArgs};
 
 use redis_streams::{
     StreamClaimOptions, StreamClaimReply, StreamCommands, StreamInfoConsumersReply,
-    StreamInfoGroupsReply, StreamInfoStreamsReply, StreamMaxlen, StreamPendingCountReply,
+    StreamInfoGroupsReply, StreamInfoStreamReply, StreamMaxlen, StreamPendingCountReply,
     StreamPendingReply, StreamRangeReply, StreamReadOptions, StreamReadReply,
 };
 
 use std::collections::BTreeMap;
 use std::str;
-use std::thread::{sleep};
+use std::thread::sleep;
 use std::time::Duration;
 
 use support::*;
@@ -45,8 +45,8 @@ fn xadd_keyrange(con: &mut Connection, key: &str, start: i32, end: i32) {
 #[test]
 fn test_cmd_options() {
     // Tests the following command option builders....
-    // xclaim_option
-    // xread_option
+    // xclaim_options
+    // xread_options
     // maxlen enum
 
     // test read options
@@ -187,14 +187,14 @@ fn test_assorted_2() {
     xadd(&mut con);
 
     // no key exists... this call breaks the connection pipe for some reason
-    let reply: RedisResult<StreamInfoStreamsReply> = con.xinfo_stream("k10");
+    let reply: RedisResult<StreamInfoStreamReply> = con.xinfo_stream("k10");
     assert_eq!(reply.is_err(), true);
 
     // redo the connection because the above error
     con = ctx.connection();
 
     // key should exist
-    let reply: StreamInfoStreamsReply = con.xinfo_stream("k1").unwrap();
+    let reply: StreamInfoStreamReply = con.xinfo_stream("k1").unwrap();
     assert_eq!(&reply.first_entry.id, "1000-0");
     assert_eq!(&reply.last_entry.id, "1000-1");
     assert_eq!(&reply.last_generated_id, "1000-1");
@@ -292,18 +292,6 @@ fn test_assorted_2() {
         .xpending_consumer_count("k99", "g99", "-", "+", 10, "c99")
         .unwrap();
     assert_eq!(reply.ids.len(), 3);
-
-    // test mixmatched StreamPending* reply types..
-
-    // xpending => StreamPendingCountReply
-    // this one doesn't throw an error. the ids will be empty, though.
-    let result: RedisResult<StreamPendingCountReply> = con.xpending("k99", "g99");
-    assert_eq!(result.unwrap().ids.len(), 0);
-
-    // xpending_count => StreamPendingReply
-    // this throws an error in the FromRedisValue trait
-    let result: RedisResult<StreamPendingReply> = con.xpending_count("k99", "g99", "-", "+", 10);
-    assert_eq!(result.is_err(), true);
 }
 
 #[test]
@@ -421,6 +409,25 @@ fn test_xdel() {
     let result: RedisResult<i32> = con.xdel("k2", &["2000-0", "2000-1", "2000-2"]);
     // should equal 2 since the last id doesn't exist
     assert_eq!(result, Ok(2));
+}
+
+#[test]
+fn test_xtrim() {
+    // Tests the following commands....
+    // xtrim
+    let ctx = TestContext::new();
+    let mut con = ctx.connection();
+
+    // add some keys
+    xadd_keyrange(&mut con, "k1", 0, 100);
+
+    // trim key to 50
+    // returns the number of items remaining in the stream
+    let result: RedisResult<i32> = con.xtrim("k1", StreamMaxlen::Equals(50));
+    assert_eq!(result, Ok(50));
+    // we should end up with 40 after this call
+    let result: RedisResult<i32> = con.xtrim("k1", StreamMaxlen::Equals(10));
+    assert_eq!(result, Ok(40));
 }
 
 #[test]

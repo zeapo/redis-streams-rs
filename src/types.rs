@@ -1,10 +1,12 @@
 use redis::{from_redis_value, FromRedisValue, RedisResult, RedisWrite, ToRedisArgs, Value};
 
 use std::collections::HashMap;
-//use std::hash::{BuildHasher, Hash};
 
 // Stream Maxlen Enum
 
+/// Utility enum for passing `MAXLEN [= or ~] [COUNT]`
+/// arguments into `StreamCommands`.
+/// The enum value represents the count.
 #[derive(PartialEq, Eq, Clone, Debug, Copy)]
 pub enum StreamMaxlen {
     Equals(usize),
@@ -26,12 +28,22 @@ impl ToRedisArgs for StreamMaxlen {
     }
 }
 
+/// Builder options for [`xclaim_options`] command.
+///
+/// [`xclaim_options`]: ./trait.StreamCommands.html#method.xclaim_options
+///
 #[derive(Default, Debug)]
 pub struct StreamClaimOptions {
+    /// Set IDLE <milliseconds> cmd arg.
     idle: Option<usize>,
+    /// Set IDLE <mstime> cmd arg.
     time: Option<usize>,
+    /// Set RETRYCOUNT <count> cmd arg.
     retry: Option<usize>,
+    /// Set FORCE cmd arg.
     force: bool,
+    /// Set JUSTID cmd arg. Be advised: the response
+    /// type changes with this option.
     justid: bool,
 }
 
@@ -88,17 +100,18 @@ impl ToRedisArgs for StreamClaimOptions {
     }
 }
 
-/// XREAD [BLOCK <milliseconds>] [COUNT <count>] STREAMS key_1 key_2 ... key_N
-///       ID_1 ID_2 ... ID_N
-
-/// XREADGROUP [BLOCK <milliseconds>] [COUNT <count>]
-///            [GROUP group-name consumer-name] STREAMS key_1 key_2 ... key_N
-///            ID_1 ID_2 ... ID_N
-
+/// Builder options for [`xread_options`] command.
+///
+/// [`xread_options`]: ./trait.StreamCommands.html#method.xread_options
+///
 #[derive(Default, Debug)]
 pub struct StreamReadOptions {
+    /// Set the BLOCK <milliseconds> cmd arg.
     block: Option<usize>,
+    /// Set the COUNT <count> cmd arg.
     count: Option<usize>,
+    /// Set the GROUP <groupname> <consumername> cmd arg.
+    /// This option will toggle the cmd from XREAD to XREADGROUP.
     group: Option<(Vec<Vec<u8>>, Vec<Vec<u8>>)>,
 }
 
@@ -157,21 +170,43 @@ impl ToRedisArgs for StreamReadOptions {
     }
 }
 
+/// Reply type used with [`xread`] or [`xread_options`] commands.
+///
+/// [`xread`]: ./trait.StreamCommands.html#method.xread
+/// [`xread_options`]: ./trait.StreamCommands.html#method.xread_options
+///
 #[derive(Default, Debug)]
 pub struct StreamReadReply {
     pub keys: Vec<StreamKey>,
 }
 
+/// Reply type used with [`xrange`], [`xrange_count`], [`xrange_all`], [`xrevrange`], [`xrevrange_count`], [`xrevrange_all`] commands.
+///
+/// [`xrange`]: ./trait.StreamCommands.html#method.xrange
+/// [`xrange_count`]: ./trait.StreamCommands.html#method.xrange_count
+/// [`xrange_all`]: ./trait.StreamCommands.html#method.xrange_all
+/// [`xrevrange`]: ./trait.StreamCommands.html#method.xrevrange
+/// [`xrevrange_count`]: ./trait.StreamCommands.html#method.xrevrange_count
+/// [`xrevrange_all`]: ./trait.StreamCommands.html#method.xrevrange_all
+///
 #[derive(Default, Debug)]
 pub struct StreamRangeReply {
     pub ids: Vec<StreamId>,
 }
 
+/// Reply type used with [`xclaim`] command.
+///
+/// [`xclaim`]: ./trait.StreamCommands.html#method.xclaim
+///
 #[derive(Default, Debug)]
 pub struct StreamClaimReply {
     pub ids: Vec<StreamId>,
 }
 
+/// Reply type used with [`xpending`] command.
+///
+/// [`xpending`]: ./trait.StreamCommands.html#method.xpending
+///
 #[derive(Default, Debug)]
 pub struct StreamPendingReply {
     pub count: usize,
@@ -180,13 +215,23 @@ pub struct StreamPendingReply {
     pub consumers: Vec<StreamInfoConsumer>,
 }
 
+/// Reply type use with [`xpending_count`] and
+/// [`xpending_consumer_count`] commands.
+///
+/// [`xpending_count`]: ./trait.StreamCommands.html#method.xpending_count
+/// [`xpending_consumer_count`]: ./trait.StreamCommands.html#method.xpending_consumer_count
+///
 #[derive(Default, Debug)]
 pub struct StreamPendingCountReply {
     pub ids: Vec<StreamPendingId>,
 }
 
+/// Reply type used with [`xinfo_stream`] command.
+///
+/// [`xinfo_stream`]: ./trait.StreamCommands.html#method.xinfo_stream
+///
 #[derive(Default, Debug)]
-pub struct StreamInfoStreamsReply {
+pub struct StreamInfoStreamReply {
     pub last_generated_id: String,
     pub radix_tree_keys: usize,
     pub groups: usize,
@@ -195,16 +240,28 @@ pub struct StreamInfoStreamsReply {
     pub last_entry: StreamId,
 }
 
+/// Reply type used with [`xinfo_consumer`] command.
+///
+/// [`xinfo_consumer`]: ./trait.StreamCommands.html#method.xinfo_consumer
+///
 #[derive(Default, Debug)]
 pub struct StreamInfoConsumersReply {
     pub consumers: Vec<StreamInfoConsumer>,
 }
 
+/// Reply type used with [`xinfo_groups`] command.
+///
+/// [`xinfo_groups`]: ./trait.StreamCommands.html#method.xinfo_groups
+///
 #[derive(Default, Debug)]
 pub struct StreamInfoGroupsReply {
     pub groups: Vec<StreamInfoGroup>,
 }
 
+/// A consumer parsed from [`xinfo_consumers`] command.
+///
+/// [`xinfo_consumers`]: ./trait.StreamCommands.html#method.xinfo_consumers
+///
 #[derive(Default, Debug)]
 pub struct StreamInfoConsumer {
     pub name: String,
@@ -212,6 +269,10 @@ pub struct StreamInfoConsumer {
     pub idle: usize,
 }
 
+/// A group parsed from [`xinfo_groups`] command.
+///
+/// [`xinfo_groups`]: ./trait.StreamCommands.html#method.xinfo_groups
+///
 #[derive(Default, Debug)]
 pub struct StreamInfoGroup {
     pub name: String,
@@ -220,6 +281,7 @@ pub struct StreamInfoGroup {
     pub last_delivered_id: String,
 }
 
+/// Represents a pending message parsed from `xpending` methods.
 #[derive(Default, Debug)]
 pub struct StreamPendingId {
     pub id: String,
@@ -228,6 +290,7 @@ pub struct StreamPendingId {
     pub times_delivered: usize,
 }
 
+/// Represents a stream `key` and its `id`'s parsed from `xread` methods.
 #[derive(Default, Debug)]
 pub struct StreamKey {
     pub key: String,
@@ -240,6 +303,7 @@ impl StreamKey {
     }
 }
 
+/// Represents a stream `id` and its field/values as a `HashMap`
 #[derive(Default, Debug)]
 pub struct StreamId {
     pub id: String,
@@ -375,10 +439,10 @@ impl FromRedisValue for StreamPendingCountReply {
     }
 }
 
-impl FromRedisValue for StreamInfoStreamsReply {
+impl FromRedisValue for StreamInfoStreamReply {
     fn from_redis_value(v: &Value) -> RedisResult<Self> {
         let map: HashMap<String, Value> = from_redis_value(v)?;
-        let mut reply = StreamInfoStreamsReply::default();
+        let mut reply = StreamInfoStreamReply::default();
         if let Some(v) = &map.get("last-generated-id") {
             reply.last_generated_id = from_redis_value(v)?;
         }
